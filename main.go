@@ -3,6 +3,7 @@ package main
 import (
 	"image/color"
 	"log"
+	"math"
 	"math/rand"
 	"strconv"
 
@@ -16,9 +17,10 @@ const (
 	screenHeight = 480
 	gridSize     = 20
 
-	frame_delay = 20
+	frameDelay = 10
 
 	// Direction
+
 	DirUp    = 0
 	DirRight = 1
 	DirDown  = 2
@@ -53,18 +55,20 @@ func (g *Game) Update() error {
 		g.framePause--
 		return nil
 	} else {
-		g.framePause = frame_delay
+		g.framePause = frameDelay
 	}
 
 	// for each snake
 	for i := range g.Snakes {
 
 		g.Snakes[i].Update()
+		headX := g.Snakes[i].Xs[0]
+		headY := g.Snakes[i].Ys[0]
 
 		// check for collision with food
 		for j, food := range g.Foods {
-			headX := g.Snakes[i].Xs[0]
-			headY := g.Snakes[i].Ys[0]
+
+			// snake head is on food
 			if headX == food.X && headY == food.Y {
 				// eat food
 				g.Snakes[i].Score++
@@ -79,7 +83,28 @@ func (g *Game) Update() error {
 				g.Snakes[i].Xs = append([]int{headX}, g.Snakes[i].Xs...)
 				g.Snakes[i].Ys = append([]int{headY}, g.Snakes[i].Ys...)
 			}
+
+			// set snake distance to food in each direction
+			// distance should be positive
+			// TODO make it a float 0-1
+			foodDistX := food.X - headX
+			foodDistY := food.Y - headY
+			g.Snakes[i].FoodDistRight = min(g.Snakes[i].FoodDistRight, foodDistX)
+			g.Snakes[i].FoodDistLeft = min(g.Snakes[i].FoodDistLeft, foodDistX)
+			g.Snakes[i].FoodDistDown = min(g.Snakes[i].FoodDistDown, foodDistY)
+			g.Snakes[i].FoodDistUp = min(g.Snakes[i].FoodDistUp, foodDistY)
+
 		}
+		// set snake distance to wall in each direction
+		distUp := headY
+		distRight := int(math.Abs(float64(screenWidth - headX)))
+		distDown := int(math.Abs(float64(screenHeight - headY)))
+		distLeft := headX
+		g.Snakes[i].WallDistUp = min(g.Snakes[i].WallDistUp, distUp)
+		g.Snakes[i].WallDistRight = min(g.Snakes[i].WallDistRight, distRight)
+		g.Snakes[i].WallDistDown = min(g.Snakes[i].WallDistDown, distDown)
+		g.Snakes[i].WallDistLeft = min(g.Snakes[i].WallDistLeft, distLeft)
+
 	}
 
 	// Check for collision with walls or itself
@@ -132,16 +157,16 @@ func main() {
 	// hold each frame for 5 ticks
 	game.framePause = 5
 
-	// add snake
-	newSnake := &Snake{}
-	newSnake.New()
-	game.Snakes = append(game.Snakes, *newSnake)
-	newSnake2 := &Snake{}
-	newSnake2.New()
-	game.Snakes = append(game.Snakes, *newSnake2)
+	// add snakes
+	snakeCount := 10
+	for i := 0; i < snakeCount; i++ {
+		newSnake := Snake{}
+		newSnake.New()
+		game.Snakes = append(game.Snakes, newSnake)
+	}
 
 	// add 10 random food
-	foodCount := 50
+	foodCount := 150
 	for i := 0; i < foodCount; i++ {
 		newFood := Food{
 			X: rand.Intn(screenWidth/gridSize) * gridSize,
