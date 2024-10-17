@@ -8,12 +8,15 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	"github.com/hajimehoshi/ebiten/v2/vector"
 )
 
 const (
 	screenWidth  = 640
 	screenHeight = 480
 	gridSize     = 20
+
+	frame_delay = 20
 
 	// Direction
 	DirUp    = 0
@@ -26,18 +29,13 @@ type Game struct {
 	Snakes []Snake
 	Foods  []Food
 	done   bool
+
+	framePause int
 }
 
 type Food struct {
 	X int
 	Y int
-}
-
-type Snake struct {
-	Xs    []int
-	Ys    []int
-	Dir   int
-	Score int
 }
 
 func (g *Game) Update() error {
@@ -48,6 +46,14 @@ func (g *Game) Update() error {
 	}
 	if g.done {
 		return ebiten.Termination
+	}
+
+	// pause for a few frames
+	if g.framePause > 0 {
+		g.framePause--
+		return nil
+	} else {
+		g.framePause = frame_delay
 	}
 
 	// for each snake
@@ -69,6 +75,9 @@ func (g *Game) Update() error {
 					Y: rand.Intn(screenHeight/gridSize) * gridSize,
 				}
 				g.Foods = append(g.Foods, newFood)
+				// grow snake
+				g.Snakes[i].Xs = append([]int{headX}, g.Snakes[i].Xs...)
+				g.Snakes[i].Ys = append([]int{headY}, g.Snakes[i].Ys...)
 			}
 		}
 	}
@@ -89,63 +98,27 @@ func (g *Game) Update() error {
 
 func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.Black)
-	// for _, segment := range g.snake {
-	// 	ebitenutil.DrawRect(screen, float64(segment.X), float64(segment.Y), gridSize, gridSize, color.White)
-	// }
-	// ebitenutil.DrawRect(screen, float64(g.food.X), float64(g.food.Y), gridSize, gridSize, color.RGBA{0xff, 0x00, 0x00, 0xff})
 
 	// draw snakes
 	for i := range g.Snakes {
 		for j := range g.Snakes[i].Xs {
-			ebitenutil.DrawRect(screen, float64(g.Snakes[i].Xs[j]), float64(g.Snakes[i].Ys[j]), gridSize, gridSize, color.White)
+			vector.DrawFilledRect(screen, float32(g.Snakes[i].Xs[j]), float32(g.Snakes[i].Ys[j]), gridSize, gridSize, color.White, true)
 		}
+	}
+
+	// draw food
+	for _, food := range g.Foods {
+		red := color.RGBA{0xff, 0x00, 0x00, 0xff}
+		vector.DrawFilledRect(screen, float32(food.X), float32(food.Y), gridSize, gridSize, red, true)
 	}
 
 	// draw score
 	scoreStr := strconv.Itoa(g.Snakes[0].Score)
 	ebitenutil.DebugPrint(screen, "Score: "+scoreStr)
-
-	// draw food
-	for _, food := range g.Foods {
-		ebitenutil.DrawRect(screen, float64(food.X), float64(food.Y), gridSize, gridSize, color.RGBA{0xff, 0x00, 0x00, 0xff})
-	}
 }
 
 func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return screenWidth, screenHeight
-}
-
-func (snake *Snake) New() {
-	// snake.Xs = []int{screenWidth / 2}
-	randX := rand.Intn(screenWidth/gridSize) * gridSize
-	snake.Xs = []int{randX}
-	// snake.Ys = []int{screenHeight / 2}
-	randY := rand.Intn(screenHeight/gridSize) * gridSize
-	snake.Ys = []int{randY}
-	snake.Dir = rand.Intn(4)
-	snake.Score = 0
-}
-
-func (snake *Snake) Update() {
-	// update snake position
-	headX := snake.Xs[0]
-	headY := snake.Ys[0]
-	// newHeadX := headX + gridSize
-	// newHeadY := headY + gridSize
-	newHeadX := headX
-	newHeadY := headY
-	switch snake.Dir {
-	case DirUp:
-		newHeadY = headY - gridSize
-	case DirRight:
-		newHeadX = headX + gridSize
-	case DirDown:
-		newHeadY = headY + gridSize
-	case DirLeft:
-		newHeadX = headX - gridSize
-	}
-	snake.Xs = append([]int{newHeadX}, snake.Xs[:len(snake.Xs)-1]...)
-	snake.Ys = append([]int{newHeadY}, snake.Ys[:len(snake.Ys)-1]...)
 }
 
 // main initializes the game, creating a new game instance,
@@ -154,11 +127,10 @@ func (snake *Snake) Update() {
 func main() {
 	// rand.Seed(time.Now().UnixNano())
 	rand.Seed(0)
-	game := &Game{
-		// snake:     []ebiten.Point{{X: screenWidth / 2, Y: screenHeight / 2}},
-		// direction: ebiten.Point{X: gridSize, Y: 0},
-		// food:      ebiten.Point{X: rand.Intn(screenWidth/gridSize) * gridSize, Y: rand.Intn(screenHeight/gridSize) * gridSize},
-	}
+	game := &Game{}
+
+	// hold each frame for 5 ticks
+	game.framePause = 5
 
 	// add snake
 	newSnake := &Snake{}
@@ -169,7 +141,8 @@ func main() {
 	game.Snakes = append(game.Snakes, *newSnake2)
 
 	// add 10 random food
-	for i := 0; i < 10; i++ {
+	foodCount := 50
+	for i := 0; i < foodCount; i++ {
 		newFood := Food{
 			X: rand.Intn(screenWidth/gridSize) * gridSize,
 			Y: rand.Intn(screenHeight/gridSize) * gridSize,
