@@ -25,6 +25,7 @@ const (
 type Game struct {
 	Snakes []Snake
 	Foods  []Food
+	done   bool
 }
 
 type Food struct {
@@ -40,10 +41,14 @@ type Snake struct {
 }
 
 func (g *Game) Update() error {
-	// Update snake position
-	// head := g.snake[0]
-	// newHead := ebiten.Point{X: head.X + g.direction.X, Y: head.Y + g.direction.Y}
-	// g.snake = append([]ebiten.Point{newHead}, g.snake[:len(g.snake)-1]...)
+
+	// maybe quit
+	if ebiten.IsKeyPressed(ebiten.KeyEscape) {
+		g.done = true
+	}
+	if g.done {
+		return ebiten.Termination
+	}
 
 	// for each snake
 	for i := range g.Snakes {
@@ -73,38 +78,13 @@ func (g *Game) Update() error {
 		headX := g.Snakes[i].Xs[0]
 		headY := g.Snakes[i].Ys[0]
 		if headX < 0 || headX >= screenWidth || headY < 0 || headY >= screenHeight {
+
 			// reset this snake
-			g.Snakes[i].Xs = []int{screenWidth / 2}
-			g.Snakes[i].Ys = []int{screenHeight / 2}
-			rand4 := rand.Intn(4)
-			g.Snakes[i].Dir = rand4
-			g.Snakes[i].Score = 0
+			g.Snakes[i].New()
 		}
 	}
 
 	return nil
-}
-
-func (snake *Snake) Update() {
-	// update snake position
-	headX := snake.Xs[0]
-	headY := snake.Ys[0]
-	// newHeadX := headX + gridSize
-	// newHeadY := headY + gridSize
-	newHeadX := headX
-	newHeadY := headY
-	switch snake.Dir {
-	case DirUp:
-		newHeadY = headY - gridSize
-	case DirRight:
-		newHeadX = headX + gridSize
-	case DirDown:
-		newHeadY = headY + gridSize
-	case DirLeft:
-		newHeadX = headX - gridSize
-	}
-	snake.Xs = append([]int{newHeadX}, snake.Xs[:len(snake.Xs)-1]...)
-	snake.Ys = append([]int{newHeadY}, snake.Ys[:len(snake.Ys)-1]...)
 }
 
 func (g *Game) Draw(screen *ebiten.Image) {
@@ -135,6 +115,42 @@ func (g *Game) Layout(outsideWidth, outsideHeight int) (int, int) {
 	return screenWidth, screenHeight
 }
 
+func (snake *Snake) New() {
+	// snake.Xs = []int{screenWidth / 2}
+	randX := rand.Intn(screenWidth/gridSize) * gridSize
+	snake.Xs = []int{randX}
+	// snake.Ys = []int{screenHeight / 2}
+	randY := rand.Intn(screenHeight/gridSize) * gridSize
+	snake.Ys = []int{randY}
+	snake.Dir = rand.Intn(4)
+	snake.Score = 0
+}
+
+func (snake *Snake) Update() {
+	// update snake position
+	headX := snake.Xs[0]
+	headY := snake.Ys[0]
+	// newHeadX := headX + gridSize
+	// newHeadY := headY + gridSize
+	newHeadX := headX
+	newHeadY := headY
+	switch snake.Dir {
+	case DirUp:
+		newHeadY = headY - gridSize
+	case DirRight:
+		newHeadX = headX + gridSize
+	case DirDown:
+		newHeadY = headY + gridSize
+	case DirLeft:
+		newHeadX = headX - gridSize
+	}
+	snake.Xs = append([]int{newHeadX}, snake.Xs[:len(snake.Xs)-1]...)
+	snake.Ys = append([]int{newHeadY}, snake.Ys[:len(snake.Ys)-1]...)
+}
+
+// main initializes the game, creating a new game instance,
+// adding a snake to the game, generating 10 random food items,
+// setting the window size and title, and running the game loop.
 func main() {
 	// rand.Seed(time.Now().UnixNano())
 	rand.Seed(0)
@@ -145,13 +161,12 @@ func main() {
 	}
 
 	// add snake
-	newSnake := Snake{
-		Xs:    []int{screenWidth / 2},
-		Ys:    []int{screenHeight / 2},
-		Dir:   rand.Intn(4),
-		Score: 0,
-	}
-	game.Snakes = append(game.Snakes, newSnake)
+	newSnake := &Snake{}
+	newSnake.New()
+	game.Snakes = append(game.Snakes, *newSnake)
+	newSnake2 := &Snake{}
+	newSnake2.New()
+	game.Snakes = append(game.Snakes, *newSnake2)
 
 	// add 10 random food
 	for i := 0; i < 10; i++ {
@@ -163,6 +178,7 @@ func main() {
 	}
 
 	ebiten.SetWindowSize(screenWidth, screenHeight)
+	ebiten.SetWindowResizingMode(ebiten.WindowResizingModeEnabled)
 	ebiten.SetWindowTitle("Snake Game")
 	if err := ebiten.RunGame(game); err != nil {
 		log.Fatal(err)
